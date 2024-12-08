@@ -1,0 +1,106 @@
+target: all
+
+common:
+  storage:
+    s3:
+      endpoint: http://loki-blocks:9000
+      region: ""
+      secret_access_key: testlongkey
+      access_key_id: test
+      insecure: true
+      bucketnames: "loki-blocks"
+      s3forcepathstyle: true
+  instance_addr: ""
+  ring:
+    #instance_availability_zone: ""
+    instance_id: ${LOKI_NODEN}
+    kvstore:
+      store: memberlist
+    zone_awareness_enabled: false
+
+storage_config:
+  tsdb_shipper:
+    active_index_directory: /data/tsdb-index
+    cache_location: /data/tsdb-cache
+  aws:
+    endpoint: http://nginx:9000
+    region: ""
+    secret_access_key: testlongkey
+    access_key_id: test
+    insecure: true
+    bucketnames: "loki-blocks"
+    s3forcepathstyle: true
+
+memberlist:
+  join_members: [
+    "loki1:7946",
+    "loki2:7946",
+    "loki3:7946",
+    "loki4:7946",
+  ]
+  advertise_addr: "" #${LOKI_ADDR}
+  advertise_port: 7946
+  bind_port: 7946
+  node_name: ${LOKI_NODEN}
+  randomize_node_name: false
+
+# metastore_client:
+#   address: "localhost:9095"
+
+schema_config:
+  configs:
+    - from: 2024-06-10
+      store: tsdb
+      object_store: aws 
+      schema: v13
+      index:
+        prefix: index_ 
+        period: 24h 
+    - from: 2024-06-14
+      store: tsdb
+      object_store: aws 
+      schema: v13
+      index:
+        prefix: index_ 
+        period: 24h 
+
+server:
+  grpc_listen_port: 9095
+  log_level: info
+
+querier:
+  multi_tenant_queries_enabled: true
+  max_concurrent: 16
+
+query_scheduler:
+  scheduler_ring:
+    kvstore:
+      store: memberlist
+    instance_addr: ${LOKI_ADDR}
+    instance_id: ${LOKI_NODEN}
+
+ruler:
+  storage:
+    type: s3 
+    s3: 
+      endpoint: http://nginx:9000
+      region: ""
+      secret_access_key: testlongkey
+      access_key_id: test
+      insecure: true
+      bucketnames: "loki-ruler"
+      s3forcepathstyle: true
+  rule_path: /data/rules
+  alertmanager_url: "http://nginx:8080/alertmanager"
+  enable_alertmanager_v2: true
+
+compactor:
+  retention_enabled: true
+  delete_request_store: aws 
+  working_directory: /data/compactor
+  compactor_ring:
+    instance_addr: ${MIMIR_ADDR}
+    instance_id: ${MIMIR_NODEN}
+    
+limits_config:
+  retention_period: 4w

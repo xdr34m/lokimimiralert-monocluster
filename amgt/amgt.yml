@@ -1,0 +1,42 @@
+target: alertmanager 
+common:
+  storage:
+    backend: s3
+    s3:
+      endpoint: nginx:9000
+      region:
+      secret_access_key: testlongkey
+      access_key_id: test
+      insecure: true
+
+alertmanager_storage:
+  s3:
+    bucket_name: amgt-alerts
+
+alertmanager: 
+  retention: 24h
+  data_dir: /data/alertmanager
+  utf8_strict_mode: true
+  sharding_ring:
+    instance_addr: ${AMGT_ADDR}
+    instance_id: ${AMGT_NODEN}
+    replication_factor: 3
+    #instance_availability_zone: X
+    zone_awareness_enabled: false
+
+memberlist:
+  join_members: [
+    "amgt1:7946",
+    "amgt2:7946",
+    "amgt3:7946",
+    "amgt4:7946",
+  ]
+  advertise_addr: "" #${MIMIR_ADDR}
+  advertise_port: 7946
+  bind_port: 7946
+  node_name: ${AMGT_NODEN}
+  randomize_node_name: false
+
+server:
+  grpc_listen_port: 9095
+  log_level: "info"

@@ -1,0 +1,268 @@
+networks:
+  int-network:
+    internal: true
+  ext-network:
+    internal: false
+
+# Settings and configurations that are common for all containers
+x-minio-common: &minio-common
+  image: quay.io/minio/minio:latest
+  command: server --console-address ":9001" http://minio{1...4}/data{1...2}
+  expose:
+    - "9000"
+    - "9001"
+  environment:
+    MINIO_ROOT_USER: minioadmin 
+    MINIO_ROOT_PASSWORD: minioadmin 
+    MINIO_ACCESS_KEY: test 
+    MINIO_SECRET_KEY: testlongkey 
+  healthcheck:
+    test: ["CMD", "mc", "ready", "local"]
+    interval: 5s
+    timeout: 5s
+    retries: 5
+  networks:
+    - int-network
+
+x-loki-common: &loki-common
+  image: grafana/loki:latest
+  command: ["-config.file=/etc/loki.yml", "-config.expand-env=true"]
+  user: root:root
+  expose:
+    - "3100" #loki
+    - "9095" #grpc
+    - "7946" #memberlist
+  working_dir: /data
+  networks:
+    - int-network
+
+x-mimir-common: &mimir-common
+  image: grafana/mimir:latest
+  command: ["-config.file=/etc/mimir.yml", "-config.expand-env=true"]
+  expose:
+    - "8080" #mimir
+    - "9095" #grpc
+    - "7946" #memberlist
+  depends_on:
+    - minio1
+    - minio2
+    - minio3
+    - minio4
+  networks:
+    - int-network
+
+x-amgt-common: &amgt-common
+  image: grafana/mimir:latest
+  command: ["-config.file=/etc/amgt.yml", "-config.expand-env=true"]
+  expose:
+    - "8080" #mimir/amgt
+    - "9095" #grpc
+    - "7946" #memberlist
+  networks:
+    - int-network
+
+services:
+  minio1:
+    <<: *minio-common
+    hostname: minio1
+    volumes:
+      - minio1-1:/data1
+      - minio1-2:/data2
+  minio2:
+    <<: *minio-common
+    hostname: minio2
+    volumes:
+      - minio2-1:/data1
+      - minio2-2:/data2
+  minio3:
+    <<: *minio-common
+    hostname: minio3
+    volumes:
+      - minio3-1:/data1
+      - minio3-2:/data2
+  minio4:
+    <<: *minio-common
+    hostname: minio4
+    volumes:
+      - minio4-1:/data1
+      - minio4-2:/data2
+
+  loki1:
+    <<: *loki-common
+    hostname: loki1
+    container_name: loki1
+    environment:
+      LOKI_ADDR: loki1
+      LOKI_NODEN: loki1
+    volumes:
+      - ./loki/loki.yml:/etc/loki.yml
+      - loki1:/data
+  loki2:
+    <<: *loki-common
+    hostname: loki2
+    container_name: loki2
+    environment:
+      LOKI_ADDR: loki2
+      LOKI_NODEN: loki2
+    volumes:
+      - ./loki/loki.yml:/etc/loki.yml
+      - loki2:/data
+  loki3:
+    <<: *loki-common
+    hostname: loki3
+    container_name: loki3
+    environment:
+      LOKI_ADDR: loki3
+      LOKI_NODEN: loki3
+    volumes:
+      - ./loki/loki.yml:/etc/loki.yml
+      - loki3:/data
+
+  loki4:
+    <<: *loki-common
+    hostname: loki4
+    container_name: loki4
+    environment:
+      LOKI_ADDR: loki4
+      LOKI_NODEN: loki4
+    volumes:
+      - ./loki/loki.yml:/etc/loki.yml
+      - loki4:/data
+
+  mimir1:
+    <<: *mimir-common
+    hostname: mimir1
+    container_name: mimir1
+    environment:
+      MIMIR_ADDR: mimir1
+      MIMIR_NODEN: mimir1
+    volumes:
+      - ./mimir/mimir.yml:/etc/mimir.yml
+      - mimir1:/data
+  mimir2:
+    <<: *mimir-common
+    hostname: mimir2
+    container_name: mimir2
+    environment:
+      MIMIR_ADDR: mimir2
+      MIMIR_NODEN: mimir2
+    volumes:
+      - ./mimir/mimir.yml:/etc/mimir.yml
+      - mimir2:/data
+  mimir3:
+    <<: *mimir-common
+    hostname: mimir3
+    container_name: mimir3
+    environment:
+      MIMIR_ADDR: mimir3
+      MIMIR_NODEN: mimir3
+    volumes:
+      - ./mimir/mimir.yml:/etc/mimir.yml
+      - mimir3:/data
+  mimir4:
+    <<: *mimir-common
+    hostname: mimir4
+    container_name: mimir4
+    environment:
+      MIMIR_ADDR: mimir4
+      MIMIR_NODEN: mimir4
+    volumes:
+      - ./mimir/mimir.yml:/etc/mimir.yml
+      - mimir4:/data
+
+  amgt1:
+    <<: *amgt-common
+    hostname: amgt1
+    container_name: amgt1
+    environment:
+      AMGT_ADDR: amgt1
+      AMGT_NODEN: amgt1
+    volumes:
+      - ./amgt/amgt.yml:/etc/amgt.yml
+      - amgt1:/data
+  amgt2:
+    <<: *amgt-common
+    hostname: amgt2
+    container_name: amgt2
+    environment:
+      AMGT_ADDR: amgt2
+      AMGT_NODEN: amgt2
+    volumes:
+      - ./amgt/amgt.yml:/etc/amgt.yml
+      - amgt2:/data
+  amgt3:
+    <<: *amgt-common
+    hostname: amgt3
+    container_name: amgt3
+    environment:
+      AMGT_ADDR: amgt3
+      AMGT_NODEN: amgt3
+    volumes:
+      - ./amgt/amgt.yml:/etc/amgt.yml
+      - amgt3:/data
+  amgt4:
+    <<: *amgt-common
+    hostname: amgt4
+    container_name: amgt4
+    environment:
+      AMGT_ADDR: amgt4
+      AMGT_NODEN: amgt4
+    volumes:
+      - ./amgt/amgt.yml:/etc/amgt.yml
+      - amgt4:/data
+
+  nginx:
+    image: nginx:latest
+    hostname: nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+      - "127.0.0.1:3100:3100"
+      - "127.0.0.1:9009:9009"
+      - "127.0.0.1:8080:8080"
+    networks:
+      - int-network
+      - ext-network
+    depends_on:
+      - minio1
+      - minio2
+      - minio3
+      - minio4
+      # - loki1
+      # - loki2
+      # - loki3
+      # - loki4
+      #- mimir1
+      #- mimir2
+      #- mimir3
+      #- mimir4
+      # - amgt1
+      # - amgt2
+      # - amgt3
+      # - amgt4
+
+
+
+volumes:
+  minio1-1:
+  minio1-2:
+  minio2-1:
+  minio2-2:
+  minio3-1:
+  minio3-2:
+  minio4-1:
+  minio4-2:
+  loki1:
+  loki2:
+  loki3:
+  loki4:
+  mimir1:
+  mimir2:
+  mimir3:
+  mimir4:
+  amgt1:
+  amgt2:
+  amgt3:
+  amgt4:

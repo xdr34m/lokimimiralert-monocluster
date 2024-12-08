@@ -1,0 +1,79 @@
+target: all
+
+tenant_federation:
+  enabled: true
+
+usage_stats:
+  enabled: false
+
+common:
+  storage:
+    backend: s3
+    s3:
+      endpoint: nginx:9000
+      region:
+      secret_access_key: testlongkey
+      access_key_id: test
+      insecure: true
+
+blocks_storage:
+  s3:
+    bucket_name: mimir-blocks
+ruler_storage:
+  s3:
+    bucket_name: mimir-ruler
+
+memberlist:
+  join_members: [
+    "mimir1:7946",
+    "mimir2:7946",
+    "mimir3:7946",
+    "mimir4:7946",
+  ]
+  advertise_addr: "" #${MIMIR_ADDR}
+  advertise_port: 7946
+  bind_port: 7946
+  node_name: ${MIMIR_NODEN}
+  randomize_node_name: false
+
+ingester:
+  ring:
+    instance_addr: ${MIMIR_ADDR}
+    instance_id: ${MIMIR_NODEN}
+    replication_factor: 3
+    #instance_availability_zone: X
+    zone_awareness_enabled: false
+
+distributor:
+  ring:
+    instance_addr: ${MIMIR_ADDR}
+    instance_id: ${MIMIR_NODEN}
+
+ruler: 
+  ring:
+    instance_addr: ${MIMIR_ADDR}
+    instance_id: ${MIMIR_NODEN}
+  tenant_federation:
+    enabled: true
+  alertmanager_url: "http://nginx:8080/alertmanager"
+
+compactor:
+  sharding_ring:
+    instance_addr: ${MIMIR_ADDR}
+    instance_id: ${MIMIR_NODEN}
+
+server:
+  grpc_listen_port: 9095
+  log_level: "info"
+
+store_gateway:
+  sharding_ring:
+    #instance_availability_zone: X
+    instance_addr: ${MIMIR_ADDR}
+    instance_id: ${MIMIR_NODEN}
+    replication_factor: 3
+    wait_stability_min_duration: "10s"
+    zone_awareness_enabled: false
+
+
+
