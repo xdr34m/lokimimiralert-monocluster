@@ -1,0 +1,22 @@
+prometheus.exporter.blackbox "main" {
+    config_file = "/etc/alloy/files/blackbox_modules.yml"
+    target {
+        name    = "oncallcloud"
+        //address = "https://oncall-prod-eu-west-0.grafana.net/oncall/integrations/v1/alertmanager/FnMunZ7OQM9ndyLmYrdQtGSLO/"
+        address = "https://oncall-prod-eu-west-0.grafana.net/oncall/integrations/v2/alertmanager/wrong"
+        module  = "http_2xx"
+    }
+}
+prometheus.scrape "blackbox"{
+    targets    = prometheus.exporter.blackbox.main.targets
+    forward_to = [prometheus.remote_write.local.receiver]
+    scrape_interval = "15s"
+}
+prometheus.remote_write "local"{
+  endpoint {
+    url = "http://nginx:9009/api/v1/push"
+    headers = {
+      "X-Scope-OrgID" = "test",
+    }
+  }
+}

@@ -33,16 +33,29 @@ x-loki-common: &loki-common
     - "9095" #grpc
     - "7946" #memberlist
   working_dir: /data
+  # healthcheck:
+  #   test: ["CMD", "curl", "-s", "http://localhost:3100/ready", "|", "grep", "ready"]
+  #   interval: 10s       # How often to run the check
+  #   timeout: 5s         # Time to wait for the check to complete
+  #   retries: 3          # How many retries before marking the container as unhealthy
+  #   start_period: 30s   # Grace period before health checks start
   networks:
     - int-network
 
 x-mimir-common: &mimir-common
   image: grafana/mimir:latest
   command: ["-config.file=/etc/mimir.yml", "-config.expand-env=true"]
+  #working_dir: /data
   expose:
     - "8080" #mimir
     - "9095" #grpc
     - "7946" #memberlist
+  # healthcheck:
+  #   test: ["CMD", "curl", "-s", "http://localhost:8080/ready", "|", "grep", "ready"]
+  #   interval: 10s       # How often to run the check
+  #   timeout: 5s         # Time to wait for the check to complete
+  #   retries: 3          # How many retries before marking the container as unhealthy
+  #   start_period: 30s   # Grace period before health checks start
   depends_on:
     - minio1
     - minio2
@@ -53,11 +66,23 @@ x-mimir-common: &mimir-common
 
 x-amgt-common: &amgt-common
   image: grafana/mimir:latest
-  command: ["-config.file=/etc/amgt.yml", "-config.expand-env=true"]
+  #working_dir: /data
+  command: [
+    "-config.file=/etc/amgt.yml",
+    "-config.expand-env=true",
+    "--http.alertmanager-http-prefix=/alertmanager",
+    "-alertmanager.configs.fallback=/etc/fallback_alert_config.yml"
+    ]
   expose:
     - "8080" #mimir/amgt
     - "9095" #grpc
     - "7946" #memberlist
+  # healthcheck:
+  #   test: ["CMD", "curl", "-s", "http://localhost:8080/ready", "|", "grep", "ready"]
+  #   interval: 10s       # How often to run the check
+  #   timeout: 5s         # Time to wait for the check to complete
+  #   retries: 3          # How many retries before marking the container as unhealthy
+  #   start_period: 30s   # Grace period before health checks start
   networks:
     - int-network
 
@@ -65,24 +90,28 @@ services:
   minio1:
     <<: *minio-common
     hostname: minio1
+    container_name: minio1
     volumes:
       - minio1-1:/data1
       - minio1-2:/data2
   minio2:
     <<: *minio-common
     hostname: minio2
+    container_name: minio2
     volumes:
       - minio2-1:/data1
       - minio2-2:/data2
   minio3:
     <<: *minio-common
     hostname: minio3
+    container_name: minio3
     volumes:
       - minio3-1:/data1
       - minio3-2:/data2
   minio4:
     <<: *minio-common
     hostname: minio4
+    container_name: minio4
     volumes:
       - minio4-1:/data1
       - minio4-2:/data2
@@ -179,6 +208,7 @@ services:
       AMGT_NODEN: amgt1
     volumes:
       - ./amgt/amgt.yml:/etc/amgt.yml
+      - ./amgt/fallback_alert_config.yml:/etc/fallback_alert_config.yml
       - amgt1:/data
   amgt2:
     <<: *amgt-common
@@ -188,6 +218,7 @@ services:
       AMGT_ADDR: amgt2
       AMGT_NODEN: amgt2
     volumes:
+      - ./amgt/fallback_alert_config.yml:/etc/fallback_alert_config.yml
       - ./amgt/amgt.yml:/etc/amgt.yml
       - amgt2:/data
   amgt3:
@@ -199,6 +230,7 @@ services:
       AMGT_NODEN: amgt3
     volumes:
       - ./amgt/amgt.yml:/etc/amgt.yml
+      - ./amgt/fallback_alert_config.yml:/etc/fallback_alert_config.yml
       - amgt3:/data
   amgt4:
     <<: *amgt-common
@@ -209,10 +241,12 @@ services:
       AMGT_NODEN: amgt4
     volumes:
       - ./amgt/amgt.yml:/etc/amgt.yml
+      - ./amgt/fallback_alert_config.yml:/etc/fallback_alert_config.yml
       - amgt4:/data
 
   nginx:
     image: nginx:latest
+    container_name: nginx
     hostname: nginx
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
@@ -243,8 +277,68 @@ services:
       # - amgt3
       # - amgt4
 
+  # cadvisor:
+  #   image: gcr.io/cadvisor/cadvisor:v0.51.0
+  #   hostname: cadvisor
+  #   container_name: cadvisor
+  #   volumes:
+  #     - /:/rootfs:ro
+  #     - /var/run:/var/run:rw
+  #     - /sys/fs/cgroup/cpu,cpuacct:/sys/fs/cgroup/cpuacct,cpu
+  #     - /var/lib/docker/:/var/lib/docker:ro
+  #   privileged: true
+  #   ports:
+  #     - 127.0.0.1:8090:8080
+  
+  alloy1:
+    image: grafana/alloy:latest
+    hostname: alloy1
+    container_name: alloy1
+    environment:
+      ALLOY_ADDR: alloy1
+      ALLOY_NODEN: alloy1
+    ports:
+      - 127.0.0.1:12345:12345
+    command: [
+      "run",
+      "--server.http.listen-addr=0.0.0.0:12345",
+      "--storage.path=/var/lib/alloy/data",
+      "/etc/alloy/config/"
+      ]
+    networks:
+      - int-network
+      - ext-network
+    volumes:
+      - ./alloy/:/etc/alloy:ro
+      - alloy1:/var/lib/alloy/data
 
-
+  fake-smtp:
+    image: haravich/fake-smtp-server
+    container_name: fake-smtp
+    hostname: fake-smtp
+    expose:
+      - 1025
+    ports:
+      - 127.0.0.1:1080:1080
+    networks:
+      - int-network
+      - ext-network
+  grafana:
+    image: grafana/grafana:latest
+    pull_policy: always
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_USERS_DEFAULT_THEME=light
+      - GF_LOG_MODE=console
+      - GF_LOG_LEVEL=critical
+    volumes:
+      - ./grafana/provisioning-datasources.yaml:/etc/grafana/provisioning/datasources/provisioning-datasources.yaml:ro
+    ports:
+      - 127.0.0.1:3000:3000
+    networks:
+      - int-network
+      - ext-network
 volumes:
   minio1-1:
   minio1-2:
@@ -266,3 +360,4 @@ volumes:
   amgt2:
   amgt3:
   amgt4:
+  alloy1:

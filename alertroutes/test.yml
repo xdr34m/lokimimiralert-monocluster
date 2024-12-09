@@ -1,0 +1,69 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 3h
+
+  # Default route - If no other route matches, alerts will go here
+  receiver: email-default  # This will be used as the default if no specific sub-route matches
+
+  routes:
+    # Route to email if Grafana OnCall is down
+    - receiver: email-fallback
+      match:
+        severity: "critical"
+      continue: false  # No further processing if this route matches, i.e., alerts will go only to email
+
+    # Specific route to Grafana OnCall
+    - receiver: email-main
+      match:
+        severity: "critical"
+      continue: true
+
+receivers:
+  - name: email-fallback
+    email_configs:
+      - to: "fallback@example.com"
+        from: "alertmanager@example.com"
+        smarthost: fake-smtp:1025
+        # auth_username: "alertmanager@example.com"
+        # auth_password: "your-password"
+        require_tls: false
+
+  - name: email-main
+    email_configs:
+      - to: "main@example.com"
+        from: "alertmanager@example.com"
+        smarthost: fake-smtp:1025
+        # auth_username: "alertmanager@example.com"
+        # auth_password: "your-password"
+        require_tls: false
+
+  - name: email-default
+    email_configs:
+      - to: "default@example.com"
+        from: "alertmanager@example.com"
+        smarthost: fake-smtp:1025
+        # auth_username: "alertmanager@example.com"
+        # auth_password: "your-password"
+        require_tls: false
+
+# Inhibit rule 1: mute email route when Grafana OnCall is up (i.e., Grafana OnCall is reachable)
+inhibit_rules:
+  - source_match:
+      alertname: "grafana_oncall_down"  # This alert triggers when Grafana OnCall is down
+    target_match:
+      receiver: "email-fallback"  # Mute the email route when Grafana OnCall is up
+    equal:
+      - alertname  # Matches any alertname, so it mutes all alerts for email when Grafana OnCall is up
+
+# Inhibit rule 2: mute Grafana OnCall route when it is down, and use email instead
+  - source_match:
+      alertname: "grafana_oncall_down"  # This alert will fire when Grafana OnCall is down
+    target_match:
+      receiver: "email-main"  # Mute the Grafana OnCall route when it is down
+    equal:
+      - alertname  # Matches any alertname, so it mutes all alerts for Grafana OnCall

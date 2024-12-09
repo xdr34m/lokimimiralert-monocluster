@@ -1,0 +1,11 @@
+default:
+  groups:
+    - name: example
+      rules:
+        - alert: grafana_oncall_down
+          expr: probe_success{job="remote/blackbox",type="failovertrigger"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Grafana OnCall is down"

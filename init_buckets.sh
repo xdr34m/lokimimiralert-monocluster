@@ -5,7 +5,7 @@ then
   echo "mc could not be found, installing..."
   wget https://dl.min.io/client/mc/release/linux-amd64/mc
   chmod +x mc
-  mv mc /usr/bin/
+  mv mc /usr/local/bin/
 fi
 mc alias set myminio http://127.0.0.1:9000 minioadmin minioadmin
 mc mb myminio/amgt-alerts
