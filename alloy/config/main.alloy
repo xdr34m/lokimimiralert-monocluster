@@ -1,3 +1,15 @@
+logging {
+  level  = "debug"
+  format = "json"
+}
+prometheus.exporter.self "alloy"{
+
+}
+prometheus.scrape "alloy"{
+    targets    = prometheus.exporter.self.alloy.targets
+    forward_to = [prometheus.remote_write.local.receiver]
+    scrape_interval = "15s"
+}
 prometheus.exporter.blackbox "main" {
     config_file = "/etc/alloy/files/blackbox_modules.yml"
     target {
@@ -7,16 +19,23 @@ prometheus.exporter.blackbox "main" {
         module  = "http_2xx"
     }
 }
+
+
 prometheus.scrape "blackbox"{
     targets    = prometheus.exporter.blackbox.main.targets
     forward_to = [prometheus.remote_write.local.receiver]
     scrape_interval = "15s"
 }
+
+
 prometheus.remote_write "local"{
   endpoint {
     url = "http://nginx:9009/api/v1/push"
     headers = {
       "X-Scope-OrgID" = "test",
+    }
+    metadata_config{
+      send = true
     }
   }
 }
